@@ -8,9 +8,12 @@ import { useNavigate } from 'react-router-dom';
 import { FormEvent, useState } from 'react';
 import { AlertCircle, LogIn, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import Logo from '@/components/Logo';
+import { useToast } from '@/components/ui/use-toast';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,14 +27,35 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // This is a simple demo - in a real app you would integrate with auth provider
-      // For now we'll just simulate a successful login/signup
+      // Validate form
+      if (!email || !password) {
+        throw new Error('Por favor, preencha todos os campos');
+      }
+      
       if (!isLogin && password !== confirmPassword) {
         throw new Error('As senhas não coincidem');
       }
       
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Por favor, insira um email válido');
+      }
+      
+      // Password validation
+      if (password.length < 6) {
+        throw new Error('A senha deve ter pelo menos 6 caracteres');
+      }
+      
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Success message
+      toast({
+        title: isLogin ? "Login bem-sucedido" : "Conta criada com sucesso",
+        description: isLogin ? "Bem-vindo de volta!" : "Sua conta foi criada com sucesso!",
+        variant: "success",
+      });
       
       // Successfully logged in or registered
       navigate('/');
@@ -49,6 +73,13 @@ const Login = () => {
     try {
       // Simulate Google login
       await new Promise(resolve => setTimeout(resolve, 800));
+      
+      toast({
+        title: "Login com Google realizado",
+        description: "Você foi conectado com sucesso através do Google",
+        variant: "success",
+      });
+      
       navigate('/');
     } catch (err) {
       setError('Falha ao fazer login com o Google');
@@ -58,12 +89,15 @@ const Login = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header title="Login" />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header title={isLogin ? "Login" : "Cadastro"} showBack={true} />
       
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
+        <Card className="w-full max-w-md border-none shadow-md">
+          <CardHeader className="space-y-3">
+            <div className="flex justify-center mb-2">
+              <Logo size="md" />
+            </div>
             <CardTitle className="text-2xl font-bold text-center">
               {isLogin ? 'Acessar sua conta' : 'Criar nova conta'}
             </CardTitle>
@@ -93,6 +127,7 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="border-gray-300"
                 />
               </div>
               
@@ -106,6 +141,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="border-gray-300"
                 />
               </div>
               
@@ -120,13 +156,14 @@ const Login = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
+                    className="border-gray-300"
                   />
                 </div>
               )}
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-bloodred-500 hover:bg-bloodred-600" 
                 disabled={loading}
               >
                 {loading ? (
@@ -151,7 +188,7 @@ const Login = () => {
                 <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
+                <span className="bg-white px-2 text-gray-500">
                   ou continue com
                 </span>
               </div>
@@ -160,7 +197,7 @@ const Login = () => {
             <Button
               variant="outline"
               type="button"
-              className="w-full flex items-center gap-2"
+              className="w-full flex items-center gap-2 border-gray-300"
               onClick={handleGoogleLogin}
               disabled={loading}
             >
@@ -193,7 +230,7 @@ const Login = () => {
           <CardFooter className="flex justify-center">
             <Button
               variant="link"
-              className="text-sm"
+              className="text-sm text-bloodred-500 hover:text-bloodred-600"
               onClick={() => setIsLogin(!isLogin)}
             >
               {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entre'}
