@@ -1,0 +1,29 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blood-donation-app
+  labels:
+    app: blood-donation-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: blood-donation-app
+  template:
+    metadata:
+      labels:
+        app: blood-donation-app
+    spec:
+      containers:
+      - name: blood-donation-app
+        image: ${DOCKER_REGISTRY}/blood-donation-app:${IMAGE_TAG}
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "512Mi"
+          requests:
+            cpu: "0.2"
+            memory: "256Mi"
