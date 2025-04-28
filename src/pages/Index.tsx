@@ -1,12 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Map from '@/components/Map';
 import DonateButton from '@/components/DonateButton';
 import FilterPanel from '@/components/FilterPanel';
 import DonationCenter from '@/components/DonationCenter';
+import Logo from '@/components/Logo';
+import OnboardingCarousel from '@/components/OnboardingCarousel';
 import { Info } from 'lucide-react';
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Sample donation centers (in a real app, this would come from an API)
 const donationCentersData = [
@@ -63,6 +66,20 @@ const Index: React.FC = () => {
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  useEffect(() => {
+    // Check if this is the first visit
+    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+    if (!hasSeenOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    localStorage.setItem('hasSeenOnboarding', 'true');
+  };
 
   // Filter centers based on selected filters
   const filteredCenters = donationCentersData.filter(center => {
@@ -85,6 +102,14 @@ const Index: React.FC = () => {
       <Header />
       
       <main className="flex-1 flex flex-col max-w-md mx-auto w-full">
+        {/* Welcome Logo Section */}
+        <div className="px-4 py-6 flex flex-col items-center">
+          <Logo size="lg" />
+          <p className="text-gray-600 mt-2 text-center">
+            Encontre centros de doação próximos e salve vidas
+          </p>
+        </div>
+        
         {/* Toggle and Filter bar */}
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center rounded-full bg-graybg-100 p-1">
@@ -168,6 +193,18 @@ const Index: React.FC = () => {
           </div>
         )}
       </main>
+      
+      {/* Onboarding Dialog */}
+      <Dialog open={showOnboarding} onOpenChange={setShowOnboarding}>
+        <DialogContent className="sm:max-w-md p-0 gap-0" showClose={false}>
+          <div className="pt-6 pb-2 px-4 text-center">
+            <Logo size="lg" />
+            <h2 className="text-2xl font-semibold mt-4">Bem-vindo ao PulseFinder</h2>
+            <p className="text-gray-500 mt-1">Vamos ajudá-lo a começar</p>
+          </div>
+          <OnboardingCarousel onComplete={handleOnboardingComplete} />
+        </DialogContent>
+      </Dialog>
       
       <DonateButton onClick={handleDonate} />
     </div>
