@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Heart } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Heart, LogIn } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface HeaderProps {
   title?: string;
@@ -32,7 +32,9 @@ const Header: React.FC<HeaderProps> = ({ title = "Doação de Sangue", showBack 
           <h1 className="text-lg font-medium text-gray-900">{title}</h1>
         </div>
         
-        <div className="w-8" />
+        <Link to="/login" className="w-8 h-8 flex items-center justify-center text-gray-700">
+          <LogIn className="w-5 h-5" />
+        </Link>
       </div>
     </header>
   );
