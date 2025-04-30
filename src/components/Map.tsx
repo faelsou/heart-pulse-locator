@@ -1,6 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import mapboxgl from 'mapbox-gl';
+import { MapPin, Navigation } from 'lucide-react';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 // Simulated donation centers data
 const donationCentersData = [
@@ -50,8 +52,12 @@ interface MapProps {
 }
 
 const Map: React.FC<MapProps> = ({ onSelectCenter, filteredTypes = [], showUrgentOnly = false }) => {
-  const [currentLocation, setCurrentLocation] = useState({ lat: -23.5505, lng: -46.6333 }); // São Paulo default
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number }>({ lat: -23.5505, lng: -46.6333 }); // São Paulo default
+  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [showTokenInput, setShowTokenInput] = useState(false);
   
   // Filter centers based on props
   const filteredCenters = donationCentersData.filter(center => {
@@ -61,7 +67,7 @@ const Map: React.FC<MapProps> = ({ onSelectCenter, filteredTypes = [], showUrgen
     return matchesType && matchesUrgent;
   });
 
-  // Get user location on component mount
+  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -76,59 +82,173 @@ const Map: React.FC<MapProps> = ({ onSelectCenter, filteredTypes = [], showUrgen
         }
       );
     }
-
-    // Simulate map loading
-    setTimeout(() => setMapLoaded(true), 1000);
   }, []);
+
+  // Check for saved token in localStorage
+  useEffect(() => {
+    const savedToken = localStorage.getItem('mapbox-token');
+    if (savedToken) {
+      setMapboxToken(savedToken);
+    } else {
+      setShowTokenInput(true);
+    }
+  }, []);
+
+  // Initialize map when token is available and container is ready
+  useEffect(() => {
+    if (!mapContainer.current || !mapboxToken) return;
+
+    // Initialize map
+    mapboxgl.accessToken = mapboxToken;
+    
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [currentLocation.lng, currentLocation.lat],
+        zoom: 13,
+      });
+
+      // Add navigation controls
+      map.current.addControl(
+        new mapboxgl.NavigationControl(),
+        'top-right'
+      );
+
+      // Add markers when map loads
+      map.current.on('load', () => {
+        setMapLoaded(true);
+        
+        // Add user location marker
+        new mapboxgl.Marker({
+          color: '#3D7DFF',
+          scale: 1,
+        })
+        .setLngLat([currentLocation.lng, currentLocation.lat])
+        .addTo(map.current!);
+
+        // Add donation centers markers
+        filteredCenters.forEach(center => {
+          const markerEl = document.createElement('div');
+          markerEl.className = 'custom-marker';
+          markerEl.innerHTML = `<div class="marker ${center.urgentNeed ? 'urgent' : ''}"></div>`;
+          markerEl.style.cursor = 'pointer';
+          
+          const marker = new mapboxgl.Marker(markerEl)
+            .setLngLat([center.position.lng, center.position.lat])
+            .setPopup(
+              new mapboxgl.Popup({ offset: 25 })
+              .setHTML(`<h3>${center.name}</h3>
+                      <p>Tipos sanguíneos: ${center.bloodTypes.join(', ')}</p>
+                      ${center.urgentNeed ? '<p class="urgent-text">Necessidade urgente!</p>' : ''}`)
+            )
+            .addTo(map.current!);
+          
+          markerEl.addEventListener('click', () => {
+            onSelectCenter(center);
+          });
+        });
+      });
+
+      // Cleanup
+      return () => {
+        map.current?.remove();
+      };
+    } catch (error) {
+      console.error("Error initializing map:", error);
+      setShowTokenInput(true);
+    }
+  }, [mapboxToken, currentLocation, filteredCenters, onSelectCenter]);
+
+  const handleTokenSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('mapbox-token', mapboxToken);
+    setShowTokenInput(false);
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-lg bg-graybg-100">
-      {!mapLoaded && (
+      {showTokenInput ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+          <h3 className="font-medium text-lg mb-4">Mapbox API Token Necessário</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Para utilizar o mapa, insira seu token público do Mapbox. 
+            <br />Você pode obter um em <a href="https://mapbox.com/account/access-tokens" target="_blank" rel="noreferrer" className="text-bloodred-500 underline">mapbox.com</a>
+          </p>
+          <form onSubmit={handleTokenSubmit} className="w-full max-w-sm">
+            <input
+              type="text"
+              value={mapboxToken}
+              onChange={(e) => setMapboxToken(e.target.value)}
+              placeholder="Insira seu token público do Mapbox"
+              className="w-full p-2 mb-3 border border-gray-300 rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-bloodred-500 text-white py-2 px-4 rounded hover:bg-bloodred-600"
+            >
+              Salvar Token
+            </button>
+          </form>
+        </div>
+      ) : !mapLoaded ? (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
+      ) : (
+        <>
+          <div ref={mapContainer} className="w-full h-full" />
+          <button
+            className="absolute bottom-4 right-4 bg-white p-2 rounded-full shadow-md z-10"
+            onClick={() => {
+              map.current?.flyTo({
+                center: [currentLocation.lng, currentLocation.lat],
+                zoom: 14,
+                speed: 1.2
+              });
+            }}
+            aria-label="Ir para minha localização"
+          >
+            <Navigation className="w-5 h-5 text-bluedark-500" />
+          </button>
+        </>
       )}
-      
-      <div className={`map-container ${mapLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
-        {/* In a real app, this would be a MapboxGL or Google Maps component */}
-        <div className="relative w-full h-full bg-graybg-100">
-          {/* Simulated map UI */}
-          <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v11/static/-46.65,-23.55,11,0/1200x800?access_token=pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJja2V5cHVyeXoweHJzMnJteGl5ZXIzZ3dhIn0._yp2P71QnYhxjbmrQpGLdg')] bg-cover bg-center" />
-          
-          {/* User location */}
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-            <div className="w-4 h-4 bg-bluedark-500 rounded-full animate-pulse-soft">
-              <div className="w-4 h-4 bg-bluedark-500 opacity-25 rounded-full animate-ping absolute"></div>
-            </div>
-          </div>
-          
-          {/* Donation centers pins */}
-          {filteredCenters.map((center) => (
-            <button
-              key={center.id}
-              onClick={() => onSelectCenter(center)}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10 group"
-              style={{
-                left: `${Math.random() * 70 + 15}%`,
-                top: `${Math.random() * 70 + 15}%`,
-              }}
-            >
-              <div className="flex flex-col items-center">
-                <MapPin 
-                  className={`w-8 h-8 drop-shadow-md transition-transform group-hover:scale-110 ${
-                    center.urgentNeed ? 'text-bloodred-500' : 'text-bloodred-300'
-                  }`} 
-                  fill={center.urgentNeed ? "#FFD1D1" : "transparent"} 
-                  strokeWidth={2.5} 
-                />
-                <div className="opacity-0 group-hover:opacity-100 bg-white px-2 py-1 rounded-md shadow-md text-xs font-medium text-foreground transition-all duration-200 whitespace-nowrap mt-1">
-                  {center.name}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+
+      <style>{`
+        .mapboxgl-popup-content {
+          padding: 15px;
+          border-radius: 8px;
+        }
+        .mapboxgl-popup-content h3 {
+          font-weight: 600;
+          margin-bottom: 5px;
+        }
+        .urgent-text {
+          color: #e11d48;
+          font-weight: 600;
+        }
+        .custom-marker {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .marker {
+          width: 24px;
+          height: 24px;
+          background-color: white;
+          border: 2px solid #e11d48;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .marker.urgent {
+          background-color: #fee2e2;
+        }
+        .marker:hover {
+          transform: scale(1.1);
+        }
+      `}</style>
     </div>
   );
 };
