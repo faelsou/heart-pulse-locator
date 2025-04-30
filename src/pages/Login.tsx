@@ -54,7 +54,7 @@ const Login = () => {
       toast({
         title: isLogin ? "Login bem-sucedido" : "Conta criada com sucesso",
         description: isLogin ? "Bem-vindo de volta!" : "Sua conta foi criada com sucesso!",
-        variant: "success",
+        // Removed the variant property since it's not of the allowed types
       });
       
       // Successfully logged in or registered
@@ -77,7 +77,7 @@ const Login = () => {
       toast({
         title: "Login com Google realizado",
         description: "Você foi conectado com sucesso através do Google",
-        variant: "success",
+        // Removed the variant property since it's not of the allowed types
       });
       
       navigate('/');
